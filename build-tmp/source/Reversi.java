@@ -12,7 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream; 
 import java.io.IOException; 
 
-public class othello_1 extends PApplet {
+public class Reversi extends PApplet {
 
 //coded by Yota Odaka
 
@@ -600,7 +600,7 @@ public class Stones  {
 	}
 }
   static public void main(String[] passedArgs) {
-    String[] appletArgs = new String[] { "othello_1" };
+    String[] appletArgs = new String[] { "Reversi" };
     if (passedArgs != null) {
       PApplet.main(concat(appletArgs, passedArgs));
     } else {
