@@ -13,4 +13,5 @@ please, install [Processng](https://processing.org/).
 --- 
 
 #other
-I take no responsibility, and you can use, edit and redistribute this, freely.
+I take no responsibility, if any issue is happened.
+And you can use, edit and redistribute this, freely.
