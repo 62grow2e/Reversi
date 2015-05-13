@@ -1,7 +1,7 @@
 # Reversi
 Othello (Reversi) program, open in Processing.
 
-And this repositroy contains java file, so you can open as java code, maybe.
+And this repositroy contains a java file, so you can open as a java code, maybe.
 
 ---
 
