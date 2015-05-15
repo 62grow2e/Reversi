@@ -34,9 +34,10 @@ public class Manager  {
 		this.isOpponentAi = false;
 	}
 
+	// constructor for playing with AI opponent
 	public Manager(boolean isOpponentBlack) {
 		this();
-
+		// AI part
 		this.isOpponentAi = true;
 		this.isOpponentBlack = isOpponentBlack;
 		this.ai = new Ai(this.isOpponentBlack, this);
@@ -154,7 +155,7 @@ public class Manager  {
 				this.detectSpaceOpen(this.black_turn);
 			}		
 		}
-
+		// trigger for processing of AI
 		if(isOpponentAi)this.ai.isMyTurn = (this.ai.isBlack==this.black_turn)?true: false;
 	}
 
@@ -172,6 +173,7 @@ public class Manager  {
 			int x = (mouseX-SIZE)/SIZE;
 			int y = (mouseY-SIZE)/SIZE;
 
+			// put stone on x, y
 			this.putStone(x, y);
 		}
 	}
