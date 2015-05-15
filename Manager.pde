@@ -7,10 +7,16 @@ public class Manager  {
 	Field field;
 	Stones stones;
 	Indicator indicator;
+	Ai ai;
+	CSVExporter csv;
+
+	boolean isOpponentAi = false;
+	boolean isOpponentBlack = false;
 
 	boolean black_turn = true;
 	boolean isGameOver = false;
 	boolean isPass = false;
+	boolean isSaved = false;
 
 	int winner = NONE; // decide at end of the game
 
@@ -20,9 +26,20 @@ public class Manager  {
 
 		this.field = new Field();
 		this.stones = new Stones(field);
-
 		this.indicator = new Indicator(this);
+		this.csv = new CSVExporter();
+
 		this.detectSpaceOpen(this.black_turn); // initialize which square you can put
+		
+		this.isOpponentAi = false;
+	}
+
+	public Manager(boolean isOpponentBlack) {
+		this();
+
+		this.isOpponentAi = true;
+		this.isOpponentBlack = isOpponentBlack;
+		this.ai = new Ai(this.isOpponentBlack, this);
 	}
 
 	//this method have to called in main draw()
@@ -31,6 +48,12 @@ public class Manager  {
 		this.field.draw();
 		this.stones.draw();
 		this.indicator.draw();
+		if(isOpponentAi)this.ai.run();
+
+		if(this.isGameOver && !this.isSaved){
+			this.csv.addValues((int)this.getScores().x, (int)this.getScores().y, winner);
+			this.isSaved = true;
+		}
 	}
 
 	//if at least one square is available, return true
@@ -68,11 +91,76 @@ public class Manager  {
 		return new PVector(blackCount, whiteCount);
 	}
 
-	//mouse event
-	public void mousePressed(int mx, int my){
+	//put stone
+	public void putStone(int x, int y) {
 		// you cannot play if animation is run
 		if(this.indicator.bPlayerFrameAnimation)return;
 		
+		if(this.field.field[x][y]==NONE){
+			// black turn
+			if(this.black_turn && this.field.isOpen[x][y]){
+				// set stone
+				this.field.field[x][y] = BLACK;
+				//reverse stones
+				this.returnStones(x, y);
+				// change turn
+				this.black_turn = !this.black_turn;
+				// set direction of animation of frame
+				this.indicator.isTargetTurnBlack = this.black_turn;
+			}
+			//white turn
+			else if(!this.black_turn && this.field.isOpen[x][y]){
+				this.field.field[x][y] = WHITE;
+				// reverse stones
+				this.returnStones(x, y);
+				// change turn
+				this.black_turn = !this.black_turn;
+				// set direction of animation of frame
+				this.indicator.isTargetTurnBlack = this.black_turn;
+			}
+			if(this.field.isOpen[x][y]){
+				// trigger a animation of frame
+				this.indicator.bPlayerFrameAnimation = true;
+			}
+		}
+		// find available squares
+		this.detectSpaceOpen(this.black_turn);
+
+		// judge whether game is over or not.
+		// if all square is filled.
+		if(this.getStonePut() == NUM_SIDE*NUM_SIDE){
+			// decide which player is the winner
+			if(this.getScores().x>this.getScores().y)winner = BLACK;
+			else if(this.getScores().x<this.getScores().y)winner = WHITE;
+			else winner = DRAW;
+			// trigger of event of gameover 
+			this.isGameOver = true;
+		}
+		// if not all square is filled.
+		else if(this.getScores().x*this.getScores().y==0 && this.getScores().mag()!=0){
+			// judge which player is the winner
+			if(this.getScores().x>this.getScores().y)winner = BLACK;
+			else if(this.getScores().x<this.getScores().y)winner = WHITE;
+			else winner = DRAW;
+			// trigger of event of gameover
+			this.isGameOver = true;
+		}
+		// judge whether this turn have to pass
+		else{
+			if(!this.isThereOpen()){
+				this.isPass = true;
+				this.black_turn = !this.black_turn;
+				this.indicator.isTargetTurnBlack = this.black_turn;
+				this.detectSpaceOpen(this.black_turn);
+			}		
+		}
+
+		if(isOpponentAi)this.ai.isMyTurn = (this.ai.isBlack==this.black_turn)?true: false;
+	}
+
+	//mouse event
+	public void mousePressed(int mx, int my){
+		if(this.isOpponentAi && this.ai.isMyTurn)return;
 		// put stones on the field
 		// whether mouse click is in valid area 
 		if(this.field.fieldPos[0][0].x-SIZE/2 < mx 
@@ -84,64 +172,7 @@ public class Manager  {
 			int x = (mouseX-SIZE)/SIZE;
 			int y = (mouseY-SIZE)/SIZE;
 
-			if(this.field.field[x][y]==NONE){
-				// black turn
-				if(this.black_turn && this.field.isOpen[x][y]){
-					// set stone
-					this.field.field[x][y] = BLACK;
-					//reverse stones
-					this.returnStones(x, y);
-					// change turn
-					this.black_turn = !this.black_turn;
-					// set direction of animation of frame
-					this.indicator.isTargetTurnBlack = this.black_turn;
-				}
-				//white turn
-				else if(!this.black_turn && this.field.isOpen[x][y]){
-					this.field.field[x][y] = WHITE;
-					// reverse stones
-					this.returnStones(x, y);
-					// change turn
-					this.black_turn = !this.black_turn;
-					// set direction of animation of frame
-					this.indicator.isTargetTurnBlack = this.black_turn;
-				}
-				if(this.field.isOpen[x][y]){
-					// trigger a animation of frame
-					this.indicator.bPlayerFrameAnimation = true;
-				}
-			}
-			// find available squares
-			this.detectSpaceOpen(this.black_turn);
-
-			// judge whether game is over or not.
-			// if all square is filled.
-			if(this.getStonePut() == NUM_SIDE*NUM_SIDE){
-				// decide which player is the winner
-				if(this.getScores().x>this.getScores().y)winner = BLACK;
-				else if(this.getScores().x<this.getScores().y)winner = WHITE;
-				else winner = DRAW;
-				// trigger of event of gameover 
-				this.isGameOver = true;
-			}
-			// if not all square is filled.
-			else if(this.getScores().x*this.getScores().y==0 && this.getScores().mag()!=0){
-				// judge which player is the winner
-				if(this.getScores().x>this.getScores().y)winner = BLACK;
-				else if(this.getScores().x<this.getScores().y)winner = WHITE;
-				else winner = DRAW;
-				// trigger of event of gameover
-				this.isGameOver = true;
-			}
-			// judge whether this turn have to pass
-			else{
-				if(!this.isThereOpen()){
-					this.isPass = true;
-					this.black_turn = !this.black_turn;
-					this.indicator.isTargetTurnBlack = this.black_turn;
-					this.detectSpaceOpen(this.black_turn);
-				}
-			}
+			this.putStone(x, y);
 		}
 	}
 
@@ -210,7 +241,7 @@ public class Manager  {
 		_x += dir_x;
 		_y += dir_y;
 		// if this target is out of board, return false
-		if(_x<0 || 7<_x || _y<0 || 7<_y)return false;
+		if(_x<0 || NUM_SIDE-1<_x || _y<0 || NUM_SIDE-1<_y)return false;
 		//if this target is empty, return false
 		if(this.field.field[_x][_y] == NONE)return false;
 		//if color whose is next to start stone is same, return false

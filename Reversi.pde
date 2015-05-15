@@ -22,20 +22,21 @@ int global_t = 0; // this value will show frame count
 
 // prepare this program
 void setup(){
-  size(10*SIZE, 10*SIZE);
-  manager = new Manager();
+  	size(10*SIZE, 10*SIZE);
+  	//manager = new Manager();
+	manager = new Manager(false);
 }
 
 // main program
 void draw(){
-  background(40);
-  manager.update(global_t);
-  global_t++;
+  	background(40);
+  	manager.update(global_t);
+  	global_t++;
 }
 
 //mouse event
 void mousePressed(){
-  manager.mousePressed(mouseX, mouseY);
+  	manager.mousePressed(mouseX, mouseY);
 }
 
 

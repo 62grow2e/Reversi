@@ -3,6 +3,8 @@ import processing.data.*;
 import processing.event.*; 
 import processing.opengl.*; 
 
+import java.util.Date; 
+
 import java.util.HashMap; 
 import java.util.ArrayList; 
 import java.io.File; 
@@ -38,24 +40,164 @@ int global_t = 0; // this value will show frame count
 
 // prepare this program
 public void setup(){
-  size(10*SIZE, 10*SIZE);
-  manager = new Manager();
+  	size(10*SIZE, 10*SIZE);
+  	//manager = new Manager();
+	manager = new Manager(false);
 }
 
 // main program
 public void draw(){
-  background(40);
-  manager.update(global_t);
-  global_t++;
+  	background(40);
+  	manager.update(global_t);
+  	global_t++;
 }
 
 //mouse event
 public void mousePressed(){
-  manager.mousePressed(mouseX, mouseY);
+  	manager.mousePressed(mouseX, mouseY);
 }
 
 
 
+public class Ai  {
+	Manager manager;
+
+	private boolean isBlack;
+	private boolean isMyTurn;
+	public Ai (boolean amIBlack, Manager manager) {
+		this.isBlack = amIBlack;
+		this.manager = manager;
+		this.isMyTurn = (amIBlack)?true: false;
+	}
+
+	public void run() {
+		if(this.manager.isGameOver)return;
+		if(this.manager.isPass)return;
+		this.isMyTurn = (this.manager.black_turn==this.isBlack)?true:false;
+		if(!this.isMyTurn)return;
+		if(this.manager.indicator.bPlayerFrameAnimation)return;
+
+		PVector newStonePos = decideStonePos();
+		this.manager.putStone((int)newStonePos.x, (int)newStonePos.y);
+
+		this.isMyTurn = false;
+	}
+
+	public PVector decideStonePos() {
+		PVector bestStep = new PVector(-1, -1, -1);
+		int num_citeria = 2;
+		float[] coefficients = {0.5f, 0.5f};
+		float evaluationValue[][][] = new float[NUM_SIDE][NUM_SIDE][num_citeria+1];
+		for(float[][] eValues: evaluationValue){
+			for (float[] eValues2 : eValues) {
+				for(float eValue: eValues2){
+					eValue = 0;
+				}
+			}
+		}
+
+		for(int i = 0; i < NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				if(!this.manager.field.isOpen[i][j])continue;
+				evaluationValue[i][j][0] += this.addValueOfStandardMovesToEvaluationValue(i, j);
+				evaluationValue[i][j][1] += this.addValueOfStonesYouCanGetToEvaluationValue(i, j);
+			}
+		}
+
+		for(int i = 0; i < NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				if(!this.manager.field.isOpen[i][j])continue;
+				for(int k = 0; k < num_citeria; k++){
+					evaluationValue[i][j][num_citeria] += coefficients[k]*evaluationValue[i][j][k];
+				}			
+			}
+		}
+
+		for(int i = 0; i< NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				if(!this.manager.field.isOpen[i][j])continue;
+				if(evaluationValue[i][j][num_citeria]>bestStep.z){
+					bestStep.x = i;
+					bestStep.y = j;
+					bestStep.z = evaluationValue[i][j][num_citeria];
+				}
+			}
+		}
+		return new PVector((int)bestStep.x, (int)bestStep.y);
+	}
+
+	private float addValueOfStandardMovesToEvaluationValue(int x, int y) {
+		if(x+y==0 || x*y==(NUM_SIDE-1)*(NUM_SIDE-1) || (x==0&&y==NUM_SIDE-1) || (x==NUM_SIDE-1&&y==0))return 1.0f; 
+		if(x==0 || y==0 || x==NUM_SIDE-1 || y==NUM_SIDE-1)return 0.8f;
+		if(x*y==1 || (x==1&&y==NUM_SIDE-2) || (x==NUM_SIDE-2&&y==1) || (x==NUM_SIDE-2&&y==NUM_SIDE-2))return 0.0f;
+		if(x==1 || x==NUM_SIDE-2 || y==1 || y==NUM_SIDE-2)return 0.1f;
+		return 0.5f;
+	}
+
+	private float addValueOfStonesYouCanGetToEvaluationValue(int x, int y) {
+		int num_stonesYouCanGet = 0;
+		float evaluationValueHere = 0;
+		for(int i = -1; i < 2; i++){
+			for(int j = -1; j < 2; j++){
+				if(i == 0 && j == 0)continue;
+				if(!this.manager.field.isOpenDir[x][y][i+1][j+1])continue;
+				num_stonesYouCanGet += stonesYouCanGet(x+i, y+j, i, j, this.isBlack);
+			}
+		}
+		evaluationValueHere = (float)num_stonesYouCanGet/18.f;
+		return evaluationValueHere;
+	}
+	private int stonesYouCanGet(int x, int y, int dir_x, int dir_y, boolean isMyColorBlack) {
+		int myColor = (isMyColorBlack)?BLACK: WHITE;
+		if(this.manager.field.field[x][y] == myColor)return 0;
+		return 1+stonesYouCanGet(x+dir_x, y+dir_y, dir_x, dir_y, isMyColorBlack);
+	}
+}
+//coded by Yota Odaka
+
+
+
+class CSVExporter{
+	String[] keys = {"id","player1", "player2", "winner"};
+	String header = "";
+	Table table = loadTable("gamedata.csv", "header");
+
+	public CSVExporter () {
+		/*table = new Table();
+		for(int i = 0; i < this.keys.length; i++){
+			table.addColumn(this.keys[i]);
+		}*/
+	}
+
+	public void addValues(int p1, int p2, int winner) {
+		TableRow newRow = this.table.addRow();
+		newRow.setInt(this.keys[0], this.table.getRowCount()-1);
+		newRow.setInt(this.keys[1], p1);
+		newRow.setInt(this.keys[2], p2);
+		String winnerName = "none";
+		switch (winner) {
+			case BLACK:
+				winnerName = "black";
+				break;
+			case WHITE:
+				winnerName = "white";
+				break;
+			case DRAW :
+				winnerName = "draw";
+				break;
+			default :
+				winnerName = "none";
+				break;	
+		}
+		newRow.setString(this.keys[3], winnerName);
+		saveTable(this.table, "data/gamedata.csv");
+	}
+
+	public void save() {
+		String filename = "data/"+String.format("%1$tY%1$tm%1$td-%1$tH%1$tM%1$tS%1$tL", new Date())+".csv";
+		saveTable(this.table, filename);
+	}
+}
 //coded by Yota Odaka
 
 // this class return value of process of each easing motions
@@ -303,10 +445,16 @@ public class Manager  {
 	Field field;
 	Stones stones;
 	Indicator indicator;
+	Ai ai;
+	CSVExporter csv;
+
+	boolean isOpponentAi = false;
+	boolean isOpponentBlack = false;
 
 	boolean black_turn = true;
 	boolean isGameOver = false;
 	boolean isPass = false;
+	boolean isSaved = false;
 
 	int winner = NONE; // decide at end of the game
 
@@ -316,9 +464,20 @@ public class Manager  {
 
 		this.field = new Field();
 		this.stones = new Stones(field);
-
 		this.indicator = new Indicator(this);
+		this.csv = new CSVExporter();
+
 		this.detectSpaceOpen(this.black_turn); // initialize which square you can put
+		
+		this.isOpponentAi = false;
+	}
+
+	public Manager(boolean isOpponentBlack) {
+		this();
+
+		this.isOpponentAi = true;
+		this.isOpponentBlack = isOpponentBlack;
+		this.ai = new Ai(this.isOpponentBlack, this);
 	}
 
 	//this method have to called in main draw()
@@ -327,6 +486,12 @@ public class Manager  {
 		this.field.draw();
 		this.stones.draw();
 		this.indicator.draw();
+		if(isOpponentAi)this.ai.run();
+
+		if(this.isGameOver && !this.isSaved){
+			this.csv.addValues((int)this.getScores().x, (int)this.getScores().y, winner);
+			this.isSaved = true;
+		}
 	}
 
 	//if at least one square is available, return true
@@ -364,11 +529,76 @@ public class Manager  {
 		return new PVector(blackCount, whiteCount);
 	}
 
-	//mouse event
-	public void mousePressed(int mx, int my){
+	//put stone
+	public void putStone(int x, int y) {
 		// you cannot play if animation is run
 		if(this.indicator.bPlayerFrameAnimation)return;
 		
+		if(this.field.field[x][y]==NONE){
+			// black turn
+			if(this.black_turn && this.field.isOpen[x][y]){
+				// set stone
+				this.field.field[x][y] = BLACK;
+				//reverse stones
+				this.returnStones(x, y);
+				// change turn
+				this.black_turn = !this.black_turn;
+				// set direction of animation of frame
+				this.indicator.isTargetTurnBlack = this.black_turn;
+			}
+			//white turn
+			else if(!this.black_turn && this.field.isOpen[x][y]){
+				this.field.field[x][y] = WHITE;
+				// reverse stones
+				this.returnStones(x, y);
+				// change turn
+				this.black_turn = !this.black_turn;
+				// set direction of animation of frame
+				this.indicator.isTargetTurnBlack = this.black_turn;
+			}
+			if(this.field.isOpen[x][y]){
+				// trigger a animation of frame
+				this.indicator.bPlayerFrameAnimation = true;
+			}
+		}
+		// find available squares
+		this.detectSpaceOpen(this.black_turn);
+
+		// judge whether game is over or not.
+		// if all square is filled.
+		if(this.getStonePut() == NUM_SIDE*NUM_SIDE){
+			// decide which player is the winner
+			if(this.getScores().x>this.getScores().y)winner = BLACK;
+			else if(this.getScores().x<this.getScores().y)winner = WHITE;
+			else winner = DRAW;
+			// trigger of event of gameover 
+			this.isGameOver = true;
+		}
+		// if not all square is filled.
+		else if(this.getScores().x*this.getScores().y==0 && this.getScores().mag()!=0){
+			// judge which player is the winner
+			if(this.getScores().x>this.getScores().y)winner = BLACK;
+			else if(this.getScores().x<this.getScores().y)winner = WHITE;
+			else winner = DRAW;
+			// trigger of event of gameover
+			this.isGameOver = true;
+		}
+		// judge whether this turn have to pass
+		else{
+			if(!this.isThereOpen()){
+				this.isPass = true;
+				this.black_turn = !this.black_turn;
+				this.indicator.isTargetTurnBlack = this.black_turn;
+				this.detectSpaceOpen(this.black_turn);
+			}		
+		}
+
+		if(isOpponentAi)this.ai.isMyTurn = (this.ai.isBlack==this.black_turn)?true: false;
+	}
+
+	//mouse event
+	public void mousePressed(int mx, int my){
+		if(this.isOpponentAi && this.ai.isMyTurn)return;
 		// put stones on the field
 		// whether mouse click is in valid area 
 		if(this.field.fieldPos[0][0].x-SIZE/2 < mx 
@@ -380,64 +610,7 @@ public class Manager  {
 			int x = (mouseX-SIZE)/SIZE;
 			int y = (mouseY-SIZE)/SIZE;
 
-			if(this.field.field[x][y]==NONE){
-				// black turn
-				if(this.black_turn && this.field.isOpen[x][y]){
-					// set stone
-					this.field.field[x][y] = BLACK;
-					//reverse stones
-					this.returnStones(x, y);
-					// change turn
-					this.black_turn = !this.black_turn;
-					// set direction of animation of frame
-					this.indicator.isTargetTurnBlack = this.black_turn;
-				}
-				//white turn
-				else if(!this.black_turn && this.field.isOpen[x][y]){
-					this.field.field[x][y] = WHITE;
-					// reverse stones
-					this.returnStones(x, y);
-					// change turn
-					this.black_turn = !this.black_turn;
-					// set direction of animation of frame
-					this.indicator.isTargetTurnBlack = this.black_turn;
-				}
-				if(this.field.isOpen[x][y]){
-					// trigger a animation of frame
-					this.indicator.bPlayerFrameAnimation = true;
-				}
-			}
-			// find available squares
-			this.detectSpaceOpen(this.black_turn);
-
-			// judge whether game is over or not.
-			// if all square is filled.
-			if(this.getStonePut() == NUM_SIDE*NUM_SIDE){
-				// decide which player is the winner
-				if(this.getScores().x>this.getScores().y)winner = BLACK;
-				else if(this.getScores().x<this.getScores().y)winner = WHITE;
-				else winner = DRAW;
-				// trigger of event of gameover 
-				this.isGameOver = true;
-			}
-			// if not all square is filled.
-			else if(this.getScores().x*this.getScores().y==0 && this.getScores().mag()!=0){
-				// judge which player is the winner
-				if(this.getScores().x>this.getScores().y)winner = BLACK;
-				else if(this.getScores().x<this.getScores().y)winner = WHITE;
-				else winner = DRAW;
-				// trigger of event of gameover
-				this.isGameOver = true;
-			}
-			// judge whether this turn have to pass
-			else{
-				if(!this.isThereOpen()){
-					this.isPass = true;
-					this.black_turn = !this.black_turn;
-					this.indicator.isTargetTurnBlack = this.black_turn;
-					this.detectSpaceOpen(this.black_turn);
-				}
-			}
+			this.putStone(x, y);
 		}
 	}
 
@@ -506,7 +679,7 @@ public class Manager  {
 		_x += dir_x;
 		_y += dir_y;
 		// if this target is out of board, return false
-		if(_x<0 || 7<_x || _y<0 || 7<_y)return false;
+		if(_x<0 || NUM_SIDE-1<_x || _y<0 || NUM_SIDE-1<_y)return false;
 		//if this target is empty, return false
 		if(this.field.field[_x][_y] == NONE)return false;
 		//if color whose is next to start stone is same, return false
