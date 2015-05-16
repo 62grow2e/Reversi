@@ -13,6 +13,7 @@ public class Manager  {
 	boolean isOpponentAi = false;
 	boolean isOpponentBlack = false;
 
+	PVector indexStonePutLast = new PVector(-1, -1);
 	boolean black_turn = true;
 	boolean isGameOver = false;
 	boolean isPass = false;
@@ -102,6 +103,9 @@ public class Manager  {
 			if(this.black_turn && this.field.isOpen[x][y]){
 				// set stone
 				this.field.field[x][y] = BLACK;
+				// set stone pos
+				this.indexStonePutLast.set(x, y);
+				this.field.indexStonePutLast.set(x, y);
 				//reverse stones
 				this.returnStones(x, y);
 				// change turn
@@ -111,7 +115,11 @@ public class Manager  {
 			}
 			//white turn
 			else if(!this.black_turn && this.field.isOpen[x][y]){
+				//set stone
 				this.field.field[x][y] = WHITE;
+				// set stone pos
+				this.indexStonePutLast.set(x, y);
+				this.field.indexStonePutLast.set(x, y);
 				// reverse stones
 				this.returnStones(x, y);
 				// change turn
