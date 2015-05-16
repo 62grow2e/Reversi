@@ -182,15 +182,17 @@ public class Ai  {
 	private float valueOfTheoryOfDegreeOfOpenToEvaluationValue(int x, int y) {
 		if(x < 0 || NUM_SIDE-1 < x || y < 0 || NUM_SIDE-1 < y)return 0;
 		float[][] tempDegreesOfOpen = calculateDegreesOfOpenFromField(this.manager.field, this.isBlack);
+		// max of the values of the a degree of open
 		float max = 0.f;
 		for(float[] vals: tempDegreesOfOpen){
 			for(float val: vals){
 				max = (val>max)?val: max;
 			}
 		}
-		for(float[] vals: tempDegreesOfOpen){
-			for(float val: vals){
-				val /= max;
+		// map values between the range from 0 to 1
+		for(int i = 0; i < NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				tempDegreesOfOpen[i][j] /= max;
 			}
 		}
 		return tempDegreesOfOpen[x][y];
@@ -199,14 +201,17 @@ public class Ai  {
 	// theory of a degree of open
 	//ArrayList<PVector> buffer_openIndex = new ArrayList<PVector>(); // buffer for overlap of indexes of open space,  
 	private float[][] calculateDegreesOfOpenFromField(Field fieldObj, boolean isBlackTurn) {
+		// values of all space
 		float[][] valuesOfAll = new float[NUM_SIDE][NUM_SIDE];
+		// initialize
 		for(float[] vals: valuesOfAll){
 			for (float val : vals) {
 				val = 0;
 			}
 		}
+		// end recursion
 		if(fieldObj.field.length != NUM_SIDE || fieldObj.field[0].length != NUM_SIDE)return valuesOfAll;
-		
+		// continue recursion
 		for(int i = 0; i < NUM_SIDE; i++){
 			for (int j = 0; j < NUM_SIDE; j++) {
 				if(!fieldObj.isOpen[i][j])continue;
@@ -216,18 +221,23 @@ public class Ai  {
 				for(int _i = -1; _i < 2; _i++){
 					for(int _j = -1; _j < 2; _j++){
 						if(!fieldObj.isOpenDir[i][j][_i+1][_j+1])continue;
+						// check next to here(i, j)
 						this.countTheNumberOfSpaceOpen(i+_i, j+_j, _i, _j, isBlackTurn, fieldObj, buffer_openIndex);
 					}
 				}
+				// get raw data of a degree of open
 				valuesOfAll[i][j] = buffer_openIndex.size();
 			}
 		}
 		return valuesOfAll;
 	}
 
+	// this method will called as recursion in function calculateDegreesOfOpenFromField()
 	private void countTheNumberOfSpaceOpen(int x, int y, int dir_x, int dir_y, boolean isMyColorBlack, Field fieldObj, ArrayList<PVector> buffer) {
 		int myColor = (isMyColorBlack)?BLACK: WHITE;
+		// if this stone color is same as mine, end
 		if(myColor == fieldObj.field[x][y])return;
+		// check around here(x, y)
 		for(int i = -1; i < 2; i++){
 			for(int j = -1; j < 2; j++){
 				int target_x = x+i;
@@ -235,16 +245,19 @@ public class Ai  {
 				if(target_x<0 || NUM_SIDE-1<target_x || target_y<0 || NUM_SIDE-1<target_y)continue;
 				if(fieldObj.field[target_x][target_y] != NONE)continue;
 				boolean bValid = true;
+				// check whether or not an overlap is exist
 				for(PVector buff: buffer){
+					// if there are overlaps, don't count 
 					if(!bValid)break;
 					if(buff.x==target_x && buff.y==target_y)bValid &= false;
 				}
+				// count
 				if(bValid)buffer.add(new PVector(target_x, target_y));
 			}
 		}
+		// recursion 
 		this.countTheNumberOfSpaceOpen(x+dir_x, y+dir_y, dir_x, dir_y, isMyColorBlack, fieldObj, buffer);
 	}
-
 }
 //coded by Yota Odaka
 
@@ -365,10 +378,10 @@ public class Field{
  			line(i*SIZE+SIZE,SIZE,i*SIZE+SIZE,height-SIZE);
  			line(SIZE, i*SIZE+SIZE, width-SIZE, i*SIZE+SIZE);
  		}
-        // blink which square that a stone put last
-        this.blinkLastPut();
  		// blink which squares you can put stones
         this.blinkOpenSpace();
+        // blink which square that a stone put last
+        this.blinkLastPut();
     }
 
     // indicate which squares you can put stones
@@ -398,7 +411,7 @@ public class Field{
 		stroke(0, 0, 128, 255);
 		strokeWeight(2);
 		fill(0, 0, (int)ele_blue, 80);
-		// a square which is a stone put last
+		// draw a square which is a stone put last
 		int stonelast_x  = (int)this.fieldPos[(int)this.indexStonePutLast.x][(int)this.indexStonePutLast.y].x;
 		int stonelast_y  = (int)this.fieldPos[(int)this.indexStonePutLast.x][(int)this.indexStonePutLast.y].y;
 		rect(stonelast_x, stonelast_y, SIZE, SIZE);

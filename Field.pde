@@ -52,10 +52,10 @@ public class Field{
  			line(i*SIZE+SIZE,SIZE,i*SIZE+SIZE,height-SIZE);
  			line(SIZE, i*SIZE+SIZE, width-SIZE, i*SIZE+SIZE);
  		}
-        // blink which square that a stone put last
-        this.blinkLastPut();
  		// blink which squares you can put stones
         this.blinkOpenSpace();
+        // blink which square that a stone put last
+        this.blinkLastPut();
     }
 
     // indicate which squares you can put stones
@@ -85,7 +85,7 @@ public class Field{
 		stroke(0, 0, 128, 255);
 		strokeWeight(2);
 		fill(0, 0, (int)ele_blue, 80);
-		// a square which is a stone put last
+		// draw a square which is a stone put last
 		int stonelast_x  = (int)this.fieldPos[(int)this.indexStonePutLast.x][(int)this.indexStonePutLast.y].x;
 		int stonelast_y  = (int)this.fieldPos[(int)this.indexStonePutLast.x][(int)this.indexStonePutLast.y].y;
 		rect(stonelast_x, stonelast_y, SIZE, SIZE);
