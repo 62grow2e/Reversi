@@ -84,7 +84,7 @@ public class Ai  {
 		if(this.manager.indicator.bPlayerFrameAnimation)return;
 		// decide AI stone position
 		PVector newStonePos = decideStonePos();
-		// put stone by AI
+		// put stone by AI, and change turn when this method is finished
 		this.manager.putStone((int)newStonePos.x, (int)newStonePos.y);
 		// finish AI trun
 		this.isMyTurn = false;
@@ -93,8 +93,8 @@ public class Ai  {
 	// decide next stone position based on evaluation value
 	public PVector decideStonePos() {
 		PVector bestStep = new PVector(-1, -1, -1); // stone position x,y, evalucation value z 
-		int num_criteria = 2; // the number of criteria
-		float[] coefficients = {0.5f, 0.5f}; // weighting
+		int num_criteria = 3; // the number of criteria
+		float[] coefficients = {0.5f, 0.2f, 0.3f}; // weighting
 		float evaluationValue[][][] = new float[NUM_SIDE][NUM_SIDE][num_criteria+1]; // 1st, 2nd indexes, 3rd each values
 		// initialize 
 		for(float[][] eValues: evaluationValue){
@@ -108,8 +108,9 @@ public class Ai  {
 		for(int i = 0; i < NUM_SIDE; i++){
 			for(int j = 0; j < NUM_SIDE; j++){
 				if(!this.manager.field.isOpen[i][j])continue;
-				evaluationValue[i][j][0] += this.addValueOfStandardMovesToEvaluationValue(i, j);
-				evaluationValue[i][j][1] += this.addValueOfStonesYouCanGetToEvaluationValue(i, j);
+				evaluationValue[i][j][0] += this.valueOfStandardMovesToEvaluationValue(i, j);
+				evaluationValue[i][j][1] += this.valueOfStonesYouCanGetToEvaluationValue(i, j);
+				evaluationValue[i][j][2] += this.valueOfTheoryOfDegreeOfOpenToEvaluationValue(i, j);
 			}
 		}
 		// integrate each evaluation values into a evaluation value 
@@ -137,7 +138,7 @@ public class Ai  {
 	}
 
 	// evaluate efficiency of standard moves
-	private float addValueOfStandardMovesToEvaluationValue(int x, int y) {
+	private float valueOfStandardMovesToEvaluationValue(int x, int y) {
 		// corner
 		if(x+y==0 || x*y==(NUM_SIDE-1)*(NUM_SIDE-1) || (x==0&&y==NUM_SIDE-1) || (x==NUM_SIDE-1&&y==0))return 1.0f; 
 		// edge
@@ -151,7 +152,7 @@ public class Ai  {
 	}
 
 	// evaluate based on the number of stones which you can get at once
-	private float addValueOfStonesYouCanGetToEvaluationValue(int x, int y) {
+	private float valueOfStonesYouCanGetToEvaluationValue(int x, int y) {
 		int num_stonesYouCanGet = 0;
 		float evaluationValueHere = 0; // evaluation value which will return 
 		// check all direction around myself
@@ -176,6 +177,74 @@ public class Ai  {
 		//recursion
 		return 1+stonesYouCanGet(x+dir_x, y+dir_y, dir_x, dir_y, isMyColorBlack);
 	}
+	
+	// evaluate based on the theory of a degree of open
+	private float valueOfTheoryOfDegreeOfOpenToEvaluationValue(int x, int y) {
+		if(x < 0 || NUM_SIDE-1 < x || y < 0 || NUM_SIDE-1 < y)return 0;
+		float[][] tempDegreesOfOpen = calculateDegreesOfOpenFromField(this.manager.field, this.isBlack);
+		float max = 0.f;
+		for(float[] vals: tempDegreesOfOpen){
+			for(float val: vals){
+				max = (val>max)?val: max;
+			}
+		}
+		for(float[] vals: tempDegreesOfOpen){
+			for(float val: vals){
+				val /= max;
+			}
+		}
+		return tempDegreesOfOpen[x][y];
+	}
+
+	// theory of a degree of open
+	//ArrayList<PVector> buffer_openIndex = new ArrayList<PVector>(); // buffer for overlap of indexes of open space,  
+	private float[][] calculateDegreesOfOpenFromField(Field fieldObj, boolean isBlackTurn) {
+		float[][] valuesOfAll = new float[NUM_SIDE][NUM_SIDE];
+		for(float[] vals: valuesOfAll){
+			for (float val : vals) {
+				val = 0;
+			}
+		}
+		if(fieldObj.field.length != NUM_SIDE || fieldObj.field[0].length != NUM_SIDE)return valuesOfAll;
+		
+		for(int i = 0; i < NUM_SIDE; i++){
+			for (int j = 0; j < NUM_SIDE; j++) {
+				if(!fieldObj.isOpen[i][j])continue;
+				// initialize buffer
+				ArrayList<PVector> buffer_openIndex = new ArrayList<PVector>();
+				// check all direction
+				for(int _i = -1; _i < 2; _i++){
+					for(int _j = -1; _j < 2; _j++){
+						if(!fieldObj.isOpenDir[i][j][_i+1][_j+1])continue;
+						this.countTheNumberOfSpaceOpen(i+_i, j+_j, _i, _j, isBlackTurn, fieldObj, buffer_openIndex);
+					}
+				}
+				valuesOfAll[i][j] = buffer_openIndex.size();
+			}
+		}
+		return valuesOfAll;
+	}
+
+	private void countTheNumberOfSpaceOpen(int x, int y, int dir_x, int dir_y, boolean isMyColorBlack, Field fieldObj, ArrayList<PVector> buffer) {
+		int myColor = (isMyColorBlack)?BLACK: WHITE;
+		if(myColor == fieldObj.field[x][y])return;
+		for(int i = -1; i < 2; i++){
+			for(int j = -1; j < 2; j++){
+				int target_x = x+i;
+				int target_y = y+j;
+				if(target_x<0 || NUM_SIDE-1<target_x || target_y<0 || NUM_SIDE-1<target_y)continue;
+				if(fieldObj.field[target_x][target_y] != NONE)continue;
+				boolean bValid = true;
+				for(PVector buff: buffer){
+					if(!bValid)break;
+					if(buff.x==target_x && buff.y==target_y)bValid &= false;
+				}
+				if(bValid)buffer.add(new PVector(target_x, target_y));
+			}
+		}
+		this.countTheNumberOfSpaceOpen(x+dir_x, y+dir_y, dir_x, dir_y, isMyColorBlack, fieldObj, buffer);
+	}
+
 }
 //coded by Yota Odaka
 
