@@ -3,12 +3,14 @@
 // this class take all management of the game
 public class Manager  {
 	int t;
+	int gamePhase = 0;
 
 	Field field;
 	Stones stones;
 	Indicator indicator;
 	Ai ai;
 	CSVExporter csv;
+	Buffers buffer;
 
 	boolean isOpponentAi = false;
 	boolean isOpponentBlack = false;
@@ -29,10 +31,20 @@ public class Manager  {
 		this.stones = new Stones(field);
 		this.indicator = new Indicator(this);
 		this.csv = new CSVExporter();
+		this.buffer = new Buffers();
 
 		this.detectSpaceOpen(this.black_turn); // initialize which square you can put
 		
 		this.isOpponentAi = false;
+		// save this state
+		int[][] tField = new int[NUM_SIDE][NUM_SIDE];	
+		for(int i = 0; i < NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				tField[i][j] = this.field.field[i][j];
+			}
+		}
+		this.buffer.save(new PhaseBuffer(tField, new PVector(-1, -1), this.black_turn), this.gamePhase);
+				
 	}
 
 	// constructor for playing with AI opponent
@@ -99,35 +111,52 @@ public class Manager  {
 		if(this.indicator.bPlayerFrameAnimation)return;
 		
 		if(this.field.field[x][y]==NONE){
-			// black turn
-			if(this.black_turn && this.field.isOpen[x][y]){
-				// set stone
-				this.field.field[x][y] = BLACK;
-				// set stone pos
-				this.indexStonePutLast.set(x, y);
-				this.field.indexStonePutLast.set(x, y);
-				//reverse stones
-				this.returnStones(x, y);
-				// change turn
-				this.black_turn = !this.black_turn;
-				// set direction of animation of frame
-				this.indicator.isTargetTurnBlack = this.black_turn;
-			}
-			//white turn
-			else if(!this.black_turn && this.field.isOpen[x][y]){
-				//set stone
-				this.field.field[x][y] = WHITE;
-				// set stone pos
-				this.indexStonePutLast.set(x, y);
-				this.field.indexStonePutLast.set(x, y);
-				// reverse stones
-				this.returnStones(x, y);
-				// change turn
-				this.black_turn = !this.black_turn;
-				// set direction of animation of frame
-				this.indicator.isTargetTurnBlack = this.black_turn;
-			}
 			if(this.field.isOpen[x][y]){
+				this.gamePhase++;
+				// black turn
+				if(this.black_turn){
+					// set stone
+					this.field.field[x][y] = BLACK;
+					// set stone pos
+					this.indexStonePutLast.set(x, y);
+					this.field.indexStonePutLast.set(x, y);
+					//reverse stones
+					this.returnStones(x, y);
+					// set direction of animation of frame
+					this.indicator.isTargetTurnBlack = false;
+					// change turn
+					this.black_turn = false;
+
+				}
+				//white turn
+				else if(!this.black_turn){
+					//set stone
+					this.field.field[x][y] = WHITE;
+					// set stone pos
+					this.indexStonePutLast.set(x, y);
+					this.field.indexStonePutLast.set(x, y);
+					// reverse stones
+					this.returnStones(x, y);
+					// set direction of animation of frame
+					this.indicator.isTargetTurnBlack = true;
+					// change turn
+					this.black_turn = true;
+				}
+				// save this state
+				println("this.gamephase", this.gamePhase);
+				int[][] tField = new int[NUM_SIDE][NUM_SIDE];
+				for(int i = 0; i < NUM_SIDE; i++){
+					for(int j = 0; j < NUM_SIDE; j++){
+						tField[i][j] = this.field.field[i][j];
+					}
+				}
+				boolean rBlack = this.black_turn;
+
+				PhaseBuffer temp = new PhaseBuffer(tField, new PVector(x, y), rBlack);
+				println("temp", temp);
+				this.buffer.save(temp, this.gamePhase);
+				//this.buffer.save(this.field.field, x, y, !this.black_turn, this.gamePhase);
+				this.buffer.printPhase();
 				// trigger a animation of frame
 				this.indicator.bPlayerFrameAnimation = true;
 			}
@@ -157,17 +186,55 @@ public class Manager  {
 		// judge whether this turn have to pass
 		else{
 			if(!this.isThereOpen()){
+				// pass process
 				this.isPass = true;
 				this.black_turn = !this.black_turn;
 				this.indicator.isTargetTurnBlack = this.black_turn;
-				this.detectSpaceOpen(this.black_turn);
 			}		
 		}
 		// trigger for processing of AI
-		if(isOpponentAi)this.ai.isMyTurn = (this.ai.isBlack==this.black_turn)?true: false;
+		if(this.isOpponentAi)this.ai.isMyTurn = (this.ai.isBlack==this.black_turn)?true: false;
 	}
 
-	//mouse event
+	private void undo() {
+		if(this.indicator.bPlayerFrameAnimation)return;
+		if(this.gamePhase < 1 || this.gamePhase > this.buffer.buffers.size())return;
+		else if(this.gamePhase == 1){
+			this.gamePhase--;
+			println("deff = 1");
+		}
+		else if (this.gamePhase > 1 && this.gamePhase < this.buffer.buffers.size()){
+			this.gamePhase-=2;
+			println("deff = 2");
+		}
+		
+		PhaseBuffer b = this.buffer.get(this.gamePhase, true);
+		for(int i = 0; i < NUM_SIDE; i++){
+			for(int j = 0; j < NUM_SIDE; j++){
+				this.field.field[i][j] = b.fieldBuffer[i][j];
+			}
+		}
+		this.indexStonePutLast.set(b.putPosBuffer);
+		this.field.indexStonePutLast.set(b.putPosBuffer);
+		println("turncolor",b.turnColor);
+		this.black_turn = (b.turnColor == BLACK)? true: false;
+		this.indicator.isTargetTurnBlack = this.black_turn;
+		this.indicator.bPlayerFrameAnimation = true;
+		this.detectSpaceOpen(this.black_turn);
+		println("black_turn: "+black_turn);
+	}
+	public void keyPressed(int key){
+		if(key == ' '){
+			this.undo();
+		}
+		if(key == 'a'){
+			println("--analysis--");
+			println("game phase: "+this.gamePhase);
+			println("black turn: "+this.black_turn);
+		}
+		if(key == 'p')this.buffer.printPhase();
+	}
+	// mouse event
 	public void mousePressed(int mx, int my){
 		if(this.isOpponentAi && this.ai.isMyTurn)return;
 		// put stones on the field
@@ -178,8 +245,8 @@ public class Manager  {
 			&& my < this.field.fieldPos[0][NUM_SIDE-1].y+SIZE/2){
 			
 			// convert mouse position to index of square
-			int x = (mouseX-SIZE)/SIZE;
-			int y = (mouseY-SIZE)/SIZE;
+		int x = (mouseX-SIZE)/SIZE;
+		int y = (mouseY-SIZE)/SIZE;
 
 			// put stone on x, y
 			this.putStone(x, y);

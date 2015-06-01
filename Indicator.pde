@@ -42,6 +42,11 @@ public class Indicator {
 		textAlign(RIGHT, TOP);
 		fill(OTHELLO_WHITE);
 		text("WHITE", width-10, 5);
+		//
+		textAlign(CENTER, TOP);
+		text("phase:"+this.manager.gamePhase, width/2, 5);
+		textAlign(CENTER, BOTTOM);
+		text("[space]UNDO", width/2, height-5);
 		// frame
 		drawPlayerFrame();
 	}
@@ -82,7 +87,7 @@ public class Indicator {
 		// when next player is black
 		if(isNextBlack){
 			// easing
-			float newFrameX = this.easing.easeInOut(this.frameAnimation_t, (float)width-(float)this.frameWidth/2, -(float)width+(float)this.frameWidth, this.frameAnimationDuration);
+			float newFrameX = this.easing.easeOut(this.frameAnimation_t, (float)width-(float)this.frameWidth/2, -(float)width+(float)this.frameWidth, this.frameAnimationDuration);
 			this.playerFramePos.x = newFrameX;
 		}
 		// when next player is white
