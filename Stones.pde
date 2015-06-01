@@ -34,7 +34,7 @@ public class Stones  {
     	    		}else if(this.field.field[i][j]==WHITE){
         				fill(255,30);
         			}
-        			for(int k = 1; k < STONE_SIZE; k++){
+        			for(int k = 1; k < STONE_SIZE; k++){ 
         				if(this.field.field[i][j]!=NONE)ellipse(this.field.fieldPos[i][j].x, this.field.fieldPos[i][j].y, k, k);
         			}
         		}

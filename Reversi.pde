@@ -4,6 +4,7 @@
 
 final int SIZE = 50; // width and height size of a square
 final int NUM_SIDE = 8; // the number of squares in a row or column
+final int NUM_GAME_PHASE  = NUM_SIDE*NUM_SIDE-3;
 final int FIELD_WIDTH = SIZE*NUM_SIDE; // width of board size
 final int FIELD_HEIGHT = SIZE*NUM_SIDE; // height of board size
 final int STONE_SIZE = (int)(SIZE*0.7); // diameter of stone
@@ -39,5 +40,6 @@ void mousePressed(){
   	manager.mousePressed(mouseX, mouseY);
 }
 
-
-
+void keyPressed(){
+	manager.keyPressed(key);
+}
